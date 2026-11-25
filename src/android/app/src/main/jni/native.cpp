@@ -1320,7 +1320,7 @@ void StartVsyncPacer() {
                 last_log = now;
                 LOG_CRITICAL(Frontend,
                              "vsync pacer: panel {:.5f}Hz /{:.0f} -> target {:.5f} fps ({:.4f}%)",
-                             panel_hz, n, target, Settings::display_sync_limit);
+                             panel_hz, n, target, Settings::display_sync_limit.load());
             }
         }
     }).detach();
@@ -1362,7 +1362,7 @@ void StartDisplaySyncPoller() {
             g_manual_target = true;
             Settings::display_sync_limit = 100.0 * fps / SCREEN_REFRESH_RATE;
             LOG_CRITICAL(Frontend, "display sync: retuned to {:.4f} fps ({:.4f}%)", fps,
-                         Settings::display_sync_limit);
+                         Settings::display_sync_limit.load());
         }
     }).detach();
 }
@@ -1608,12 +1608,11 @@ void Java_org_citra_citra_1emu_NativeLibrary_unlinkConsole(JNIEnv* env, jobject 
 
 void Java_org_citra_citra_1emu_NativeLibrary_setTemporaryFrameLimit(JNIEnv* env, jobject obj,
                                                                     jdouble speed) {
-    Settings::temporary_frame_limit = speed;
-    Settings::is_temporary_frame_limit = true;
+    Settings::user_turbo_frame_limit.store(speed);
 }
 
 void Java_org_citra_citra_1emu_NativeLibrary_disableTemporaryFrameLimit(JNIEnv* env, jobject obj) {
-    Settings::is_temporary_frame_limit = false;
+    Settings::user_turbo_frame_limit.store(-1.0);
 }
 
 void Java_org_citra_citra_1emu_NativeLibrary_playTimeManagerInit(JNIEnv* env, jobject obj) {

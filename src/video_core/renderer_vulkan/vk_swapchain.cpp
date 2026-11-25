@@ -19,7 +19,6 @@ Swapchain::Swapchain(const Instance& instance_, u32 width, u32 height, vk::Surfa
                      bool low_refresh_rate)
     : instance{instance_}, surface{surface_} {
     FindPresentFormat();
-    SetPresentMode();
     Create(width, height, surface, low_refresh_rate);
 }
 
@@ -211,11 +210,19 @@ void Swapchain::SetPresentMode() {
     }
 
     const auto frame_limit = Settings::GetFrameLimit();
+    // FG uses a separate display-paced overlay. Keep its source swapchain
+    // non-blocking from startup, including when turbo is toggled mid-game.
+    // Do not recreate the Android surface or change refresh modes on a toggle.
+#ifdef ANDROID
+    const bool framegen_source = Settings::values.frame_generation.GetValue();
+#else
+    constexpr bool framegen_source = false;
+#endif
 
     // If vsync is enabled attempt to use mailbox mode in case the user wants to speedup/slowdown
     // the game. If mailbox is not available use immediate and warn about it.
     if (use_vsync &&
-        (frame_limit > 100 || frame_limit == 0 || low_refresh_rate)) { // 0 = unthrottled
+        (frame_limit > 100 || frame_limit == 0 || low_refresh_rate || framegen_source)) {
         present_mode = has_mailbox ? vk::PresentModeKHR::eMailbox : vk::PresentModeKHR::eImmediate;
         if (!has_mailbox) {
             LOG_WARNING(

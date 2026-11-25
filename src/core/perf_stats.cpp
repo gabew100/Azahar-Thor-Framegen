@@ -224,9 +224,14 @@ void FrameLimiter::DoFrameLimiting(microseconds current_system_time_us) {
     }
 
     auto now = Clock::now();
-    double sleep_scale = Settings::GetFrameLimit() / 100.0;
+    // Sample once: turbo can change on the Android UI thread at any time.
+    const double sleep_scale = Settings::GetFrameLimit() / 100.0;
 
-    if (Settings::GetFrameLimit() == 0) {
+    if (sleep_scale == 0.0) {
+        // Don't carry stale timing debt into the next speed-limited frame.
+        previous_system_time_us = current_system_time_us;
+        previous_walltime = now;
+        frame_limiting_delta_err = microseconds::zero();
         return;
     }
 

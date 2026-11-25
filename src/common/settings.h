@@ -710,16 +710,24 @@ void RenameCurrentProfile(std::string new_name);
 
 extern bool is_temporary_frame_limit;
 extern double temporary_frame_limit;
-extern double display_sync_limit;
+extern std::atomic<double> display_sync_limit;
+// Android's user-controlled turbo is independent of the game's frame-limit SVC.
+// Negative means inactive; zero means unlimited.
+extern std::atomic<double> user_turbo_frame_limit;
 static inline void ResetTemporaryFrameLimit() {
     is_temporary_frame_limit = false;
     temporary_frame_limit = 0;
+    user_turbo_frame_limit.store(-1.0);
 }
 static inline double GetFrameLimit() {
-    // Pace to the panel, not to the 3DS. Checked first so a title's frame-limit
-    // SVC cannot reset it mid-game.
-    if (display_sync_limit > 0.0) {
-        return display_sync_limit;
+    const double turbo_limit = user_turbo_frame_limit.load();
+    if (turbo_limit >= 0.0) {
+        return turbo_limit;
+    }
+    // Keep the Thor's normal display pacing ahead of title-controlled limits.
+    const double sync_limit = display_sync_limit.load();
+    if (sync_limit > 0.0) {
+        return sync_limit;
     }
     return is_temporary_frame_limit ? temporary_frame_limit : values.frame_limit.GetValue();
 }
