@@ -24,7 +24,9 @@ jobs:
           java-version: '17'
       - name: Install Android build tools
         run: |
-          sdkmanager "platforms;android-35" "ndk;27.0.12077973" "cmake;3.30.3"
+          SDKMANAGER="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" "platforms;android-35" "ndk;27.0.12077973" "cmake;3.30.3"
       - name: Extract LSFG runtime from original release
         run: |
           curl --fail --location --retry 3 -o /tmp/original.apk https://github.com/slushiimusic/Azahar-Thor-Framegen/releases/download/2126.0-thor/AzaharThor-2126.0-framegen.apk
