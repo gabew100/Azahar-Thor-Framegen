@@ -1,0 +1,52 @@
+name: Thor turbo APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/thor-turbo-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android build tools
+        run: |
+          sdkmanager "platforms;android-35" "ndk;27.0.12077973" "cmake;3.30.3"
+      - name: Extract LSFG runtime from original release
+        run: |
+          curl --fail --location --retry 3 -o /tmp/original.apk https://github.com/slushiimusic/Azahar-Thor-Framegen/releases/download/2126.0-thor/AzaharThor-2126.0-framegen.apk
+          echo "5a778da8d34e6d8562fdfbfb177f5804e05b9ead8ce8b1a86498e503590c8be8  /tmp/original.apk" | sha256sum --check
+          mkdir -p src/android/app/src/main/jniLibs/arm64-v8a
+          unzip -p /tmp/original.apk lib/arm64-v8a/liblsfg-android.so > src/android/app/src/main/jniLibs/arm64-v8a/liblsfg-android.so
+          test -s src/android/app/src/main/jniLibs/arm64-v8a/liblsfg-android.so
+      - name: Build signed vanilla release
+        working-directory: src/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleVanillaRelease --no-daemon
+      - name: Verify and package APK
+        run: |
+          apk=$(find src/android/app/build/outputs/apk/vanilla/release -name '*.apk' -print -quit)
+          test -n "$apk"
+          unzip -l "$apk" | grep 'lib/arm64-v8a/liblsfg-android.so'
+          mkdir -p artifacts
+          cp "$apk" artifacts/AzaharThor-turbo.apk
+          sha256sum artifacts/AzaharThor-turbo.apk > artifacts/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AzaharThor-turbo-APK
+          path: artifacts/
+          if-no-files-found: error
